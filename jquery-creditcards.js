@@ -99,6 +99,7 @@
 		}
 	},
 	mapIIN: function(CCN) {
+		// Mitch Was Here
 		this.cards = $.map(this.cards, 
 				$.proxy(
 					function(value)
