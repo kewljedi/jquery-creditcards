@@ -86,24 +86,25 @@
 	},
 	keyup:function(eventobj){
 		CCN = this.$elem.val();
-		if(eventobj.keyCode == 46 || eventobj.keyCode == 8 )
+		if(eventobj.keyCode == 46 || eventobj.keyCode == 8 || CCN.toString().length == 0 )
 		{
 			this.cards = this.config.cards;		
 			this.card = null;				
 			this.mapIIN(CCN);
 		}
 		
-		if(CCN.length <= this.IINLength && this.card == null) //&& this.cards.length != 1)
+		if(this.card == null) //&& this.cards.length != 1)
 		{			
 			this.mapIIN(CCN);
 		}
+		
+		this.validate();
 	},
 	mapIIN: function(CCN) {
-		// Mitch Was Here
+		
 		this.cards = $.map(this.cards, 
 				$.proxy(
-					function(value)
-					{
+					function(value)	{
 						var retValue = null;
 						
 						if(this.matchIIN(value,CCN))
@@ -117,27 +118,29 @@
 				)
 			);
 			
-			if(this.cards.length == 1 && this.card != null)
+		if(this.cards.length == 1 && this.card != null)
+		{
+			//we now know the type of card.
+			if($.isFunction(this.config.OnCardTypeFound))
 			{
-				//we now know the type of card.
-				if($.isFunction(this.config.OnCardTypeFound))
-				{
-					this.config.OnCardTypeFound( this.cards[0] );
-				}
+				this.config.OnCardTypeFound( this.cards[0] );
 			}
-			
-			if(this.cards.length <= 0)
+		}
+		
+		if(this.cards.length <= 0)
+		{
+			//this.card = null;
+			if($.isFunction(this.config.OnCardTypeError))
 			{
-				this.card = null;
-				if($.isFunction(this.config.OnCardTypeError))
-				{
-					this.config.OnCardTypeError();
-				}
+				this.config.OnCardTypeError(this.card);
 			}
+		}
+		
 	},
     validate: function() {
 		//the first step is to get the value from the control that we are attached to.
 		var inputcc = this.$elem.val();
+		var isValid = false;
 		
 		if( inputcc.length >= 6 )
 		{		
@@ -145,7 +148,7 @@
 		
 			//since none of the credit cards end up not being numbers lets do that first...
 			this.CCN = new Number(inputcc);
-			this.card = null;
+			// this.card = null;
 			
 			jQuery.each(this.defaults.cards,$.proxy( function( index, value)
 			{
@@ -153,28 +156,26 @@
 				{
 					if(this.matchNumberSize(value,this.CCN)) {
 						if(value.checksum(this.CCN)) {
-						
+							isValid = true;
 							this.card = value;
 							return false;
 						}
 					}
 				}
 				
-				this.card = null;
+				// this.card = null;
 				
 			},this));
-		} else {
-			this.card = null;
-		}
+		} 
 		
-		if(this.card != null)
+		if(isValid)
 		{
 			if($.isFunction(this.config.OnValidationSuccess)){
 				this.config.OnValidationSuccess(this.card);
 			}		
 		} else {
 			if($.isFunction(this.config.OnValidationFailure)){
-				this.config.OnValidationFailure();
+				this.config.OnValidationFailure(this.card);
 			}
 		}
     },
@@ -196,13 +197,18 @@
 		jQuery.each(card.iin, $.proxy(function(index, value)
 		{
 			//lets just start by seeing if what they have typed so far is a match.
-			var tempIIN = new Number(IIN.toString());
-			var tempValue = new Number(value.toString());
-			if(tempIIN.toString().length > tempValue.toString().length)
+			var tempIIN = IIN;
+			var tempValue = value;
+			
+			// Get the lengths beforehand for easier debugging
+			var val1 = IIN.toString().length;
+			var val2 = value.toString().length;
+			
+			if(val1 > val2)
 			{
-				tempIIN = new Number(IIN.toString().substring(0,value.toString().length));
+				tempIIN = new Number(IIN.toString().substring(0,val2));
 			} else {
-				tempValue = new Number(value.toString().substring(0,IIN.toString().length));				
+				tempValue = new Number(value.toString().substring(0,val1));				
 			}
 			
 			if(tempIIN.valueOf() == tempValue.valueOf())
@@ -221,10 +227,22 @@
 		return returnVal;
 	},
 	defaults: {
-		OnCardTypeFound: function(card) {alert(card.name)},
-		OnCardTypeError: function() { alert('No hope in finding this card');},
-		OnValidationSuccess: function(card){ alert('validate the card as a ' + card.name);},
-		OnValidationFailure: function(){ alert('this is not a valid card number');},
+		OnCardTypeFound: function(card) {
+			$("#CC-RES").attr("class", "CC " + card.imageclass);
+		},
+		OnCardTypeError: function(card) { 
+		
+			$("#CC-RES").attr("class", card.imageclass + "-NOTSELECTED");
+			//this.card = null;
+		},
+		OnValidationSuccess: function(card){ 
+			
+			$("#CC-RES").attr("class", "CC " + card.imageclass + "-SELECTED");
+		},
+		OnValidationFailure: function(card){ 
+			
+			$("#CC-RES").attr("class", "CC " + card.imageclass + "-NOTSELECTED");	
+		},
 		cards:[
 			{
 				name:'Master Card',
