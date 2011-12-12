@@ -51,41 +51,67 @@
 	}
 
   // our plugin constructor
-  var CreditCardValidation = function( elem, options ){
-      this.elem = elem;
-      this.$elem = $(elem);
-      this.options = options;
-	  
-      // This next line takes advantage of HTML5 data attributes
-      // to support customization of the plugin on a per-element
-      // basis. For example,
-      // <div class=item' data-plugin-options='{"message":"Goodbye World!"}'></div>
-      this.metadata = this.$elem.data( 'creditcard-options' );
+	var CreditCardValidation = function( elem, options ){
+		this.elem = elem;
+		this.$elem = $(elem);
+		this.options = options;
+
+		// This next line takes advantage of HTML5 data attributes
+		// to support customization of the plugin on a per-element
+		// basis. For example,
+		// <div class=item' data-plugin-options='{"message":"Goodbye World!"}'></div>
+		this.metadata = this.$elem.data( 'creditcard-options' );
+	
+		this.config = $.extend({}, this.defaults, this.options, this.metadata);
+		
+		// This section builds the control
+		
+		// TODO: Figure out some logic if someone names their custom div's the same names as the default ones
+		
+		// Set up inputbox
+		if (this.config.inputDiv == this.defaults.inputDiv) {
+			var newTextBoxDiv = $(document.createElement('div')).attr("id", this.config.inputDiv);
+			newTextBoxDiv.appendTo(elem);
+			newTextBoxDiv.after().html('<input type="text" name="CCtextbox" id="CCtextbox" value="" >');
+			this.ccnTextBox = this.$elem.find('#CCtextbox');
+		} else {
+			this.ccnTextBox = this.$elem.find('#' + this.config.inputDiv);
+		}
+		
+		// Set up image 
+		if (this.config.imageDiv == this.defaults.imageDiv) {
+			this.newImageDiv = $(document.createElement('div')).attr("id", this.config.imageDiv);
+			this.newImageDiv.appendTo(elem);
+		} else {
+			this.newImageDiv = $(this.$elem).find('#' + this.config.imageDiv);
+		}
+	 
+	 
     };
 
   // the plugin prototype
   CreditCardValidation.prototype = {
 
     init: function() {
-      this.config = $.extend({}, this.defaults, this.options, this.metadata);
-	  
-	  this.$elem.bind( 'keyup.creditcardvalidation', $.proxy(this.keyup,this) );
-	  this.$elem.bind( 'focusout.creditcardvalidation',$.proxy(this.focusout,this));
-	  this.cards = this.config.cards; 
-	  this.IINLength = 6;	 
+		this.$elem.bind( 'keyup.creditcardvalidation', $.proxy(this.keyup,this) );
+		this.$elem.bind( 'focusout.creditcardvalidation',$.proxy(this.focusout,this));
+		this.cards = this.config.cards; 
+		this.IINLength = 6;	 
 
-	  $('head').append('<link rel="stylesheet" href="creditcardsprite.css" type="text/css" />');
+		$('head').append('<link rel="stylesheet" href="creditcardsprite.css" type="text/css" />');
 
-      return this;
+		return this;
     },
 	destroy: function() {
 		this.$elem.unbind('.creditcardvalidation');		
 	},
 	focusout: function(eventobj) {
-		this.validate();
+		//this.validate();
 	},
 	keyup:function(eventobj){
-		CCN = this.$elem.val();
+		
+		CCN = this.ccnTextBox.val();
+		
 		if(eventobj.keyCode == 46 || eventobj.keyCode == 8 || CCN.toString().length == 0 )
 		{
 			this.cards = this.config.cards;		
@@ -96,6 +122,19 @@
 		if(this.card == null) //&& this.cards.length != 1)
 		{			
 			this.mapIIN(CCN);
+		} else {
+			// prevent typing more numbers.
+			
+			var maxNumbers = 0;
+			for (x in this.card.numbersizes) {
+				if (this.card.numbersizes[x] > maxNumbers) {
+					maxNumbers = this.card.numbersizes[x];
+				}
+			}
+			
+			if (CCN.toString().length > maxNumbers) {
+				this.ccnTextBox.val(this.ccnTextBox.val().substring(0, maxNumbers));
+			}
 		}
 		
 		this.validate();
@@ -123,7 +162,7 @@
 			//we now know the type of card.
 			if($.isFunction(this.config.OnCardTypeFound))
 			{
-				this.config.OnCardTypeFound( this.cards[0] );
+				this.config.OnCardTypeFound( this );
 			}
 		}
 		
@@ -132,14 +171,14 @@
 			//this.card = null;
 			if($.isFunction(this.config.OnCardTypeError))
 			{
-				this.config.OnCardTypeError(this.card);
+				this.config.OnCardTypeError( this );
 			}
 		}
 		
 	},
     validate: function() {
 		//the first step is to get the value from the control that we are attached to.
-		var inputcc = this.$elem.val();
+		var inputcc = this.ccnTextBox.val();
 		var isValid = false;
 		
 		if( inputcc.length >= 6 )
@@ -171,11 +210,11 @@
 		if(isValid)
 		{
 			if($.isFunction(this.config.OnValidationSuccess)){
-				this.config.OnValidationSuccess(this.card);
+				this.config.OnValidationSuccess(this);
 			}		
 		} else {
 			if($.isFunction(this.config.OnValidationFailure)){
-				this.config.OnValidationFailure(this.card);
+				this.config.OnValidationFailure(this);
 			}
 		}
     },
@@ -227,22 +266,27 @@
 		return returnVal;
 	},
 	defaults: {
-		OnCardTypeFound: function(card) {
-			$("#CC-RES").attr("class", "CC " + card.imageclass);
-		},
-		OnCardTypeError: function(card) { 
+		// "At this level of abstraction, nothing makes sense" - Steve 
+		imageDiv: "ImageDiv",
+		inputDiv: "TextBoxDiv",
 		
-			$("#CC-RES").attr("class", card.imageclass + "-NOTSELECTED");
+		OnCardTypeFound: function(ValidateCreditCard) {
+			ValidateCreditCard.newImageDiv.attr("class", "CC " + ValidateCreditCard.card.imageclass);
+		},
+		OnCardTypeError: function(ValidateCreditCard) { 
+		
+			ValidateCreditCard.newImageDiv.attr("class", "");
 			//this.card = null;
 		},
-		OnValidationSuccess: function(card){ 
+		OnValidationSuccess: function(ValidateCreditCard){ 
 			
-			$("#CC-RES").attr("class", "CC " + card.imageclass + "-SELECTED");
+			ValidateCreditCard.newImageDiv.attr("class", "CC " + ValidateCreditCard.card.imageclass + "-SELECTED");
 		},
-		OnValidationFailure: function(card){ 
+		OnValidationFailure: function(ValidateCreditCard){ 
 			
-			$("#CC-RES").attr("class", "CC " + card.imageclass + "-NOTSELECTED");	
+			ValidateCreditCard.newImageDiv.attr("class", "CC " + ValidateCreditCard.card.imageclass + "-NOTSELECTED");	
 		},
+		
 		cards:[
 			{
 				name:'Master Card',
@@ -264,7 +308,7 @@
 				name:'American Express',
 				numbersizes:[15],
 				checksum: mod10,
-				imageclass:'ae',
+				imageclass:'AE',
 				iin:[34,37],
 				csc:'CID'
 			},
