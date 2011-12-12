@@ -308,7 +308,7 @@
 				name:'American Express',
 				numbersizes:[15],
 				checksum: mod10,
-				imageclass:'ae',
+				imageclass:'AE',
 				iin:[34,37],
 				csc:'CID'
 			},
