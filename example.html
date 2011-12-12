@@ -18,6 +18,8 @@
 <div id="cc2">
 	<div id="textboxHolder">
 		<input type="text" name="MyCustomTextBox" id="myCustomTextBox" value="" >
+		<input type="text" name="MyCustomCCVTextBox" id="myCustomCCV" value="" >
+		
 	</div>
 	<div id="imageHolder"></div>
 </div>
@@ -33,9 +35,13 @@
 			
 			// Create the credit card validation using custom html
 			$("#cc2").creditcardvalidation( {
-				inputDiv: "myCustomTextBox",
-				imageDiv: "imageHolder"
-			} );
+				inputTextBoxID: "myCustomTextBox",
+				imageDivID: "imageHolder",
+				ccvTextBoxID: "myCustomCCV",
+				callback:  function () {
+					alert("Success");
+				}
+			});
 		}
 		
 		
