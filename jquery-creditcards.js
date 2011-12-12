@@ -114,6 +114,8 @@
 		this.$elem.bind( 'focusout.creditcardvalidation',$.proxy(this.focusout,this));
 		this.cards = this.config.cards; 
 		this.IINLength = 6;	 
+		this.isCCNvalid = false;
+		this.isCCVvalid = false;
 
 		$('head').append('<link rel="stylesheet" href="creditcardsprite.css" type="text/css" />');
 
@@ -345,24 +347,29 @@
 		inputTextBoxID: "ccnTextBox",
 		ccvTextBoxID: "ccvTextBox",
 		
+		
 		OnCardTypeFound: function(ValidateCreditCard) {
+			this.isCCNvalid = true;
 			ValidateCreditCard.newimageDivID.attr("class", "CC " + ValidateCreditCard.card.imageclass);
 		},
 		OnCardTypeError: function(ValidateCreditCard) { 
+			this.isCCNvalid = false;
 			ValidateCreditCard.newimageDivID.attr("class", "");
 			//this.card = null;
 		},
 		OnValidationSuccess: function(ValidateCreditCard){ 
+			this.isCCNvalid = true;
 			ValidateCreditCard.newimageDivID.attr("class", "CC " + ValidateCreditCard.card.imageclass + "-SELECTED");
 		},
 		OnValidationFailure: function(ValidateCreditCard){ 
+			this.isCCNvalid = false;
 			ValidateCreditCard.newimageDivID.attr("class", "CC " + ValidateCreditCard.card.imageclass + "-NOTSELECTED");	
 		},
 		OnValidationCCVSuccess: function(ValidateCCV) {
-			// Nothing really
+			this.isCCVvalid = true;
 		},
 		OnValidationCCVFailure: function(ValidateCCV) {
-			// Nothing really
+			this.isCCVvalid = false;
 		},		
 		OnValidationAllSuccess: function (ValidateAll) {
 			// This needs to return to main page
