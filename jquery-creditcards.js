@@ -142,7 +142,7 @@
 					// Process the 3 digit code
 					var CCV = this.ccvTextBox.val();
 					
-					if (this.card == null) {
+					if (this.card == null || this.isCCNvalid == false) {
 						this.ccvTextBox.val('');
 										
 					} else {
@@ -162,16 +162,15 @@
 						}
 						
 						if (CCV.toString().length >= maxNumbers && maxNumbers > 0) {
-							this.ccvTextBox.val(this.ccvTextBox.val().substring(0, maxNumbers));
+							this.ccvTextBox.val(CCV.substring(0, maxNumbers));
 						}
 					}
 					
-					this.validateCCV(CCV);
 					break;
 					
 				case this.config.inputTextBoxID:
 					// Process the event on the input div
-					CCN = this.ccnTextBox.val();
+					var CCN = this.ccnTextBox.val();
 			
 					if(eventobj.keyCode == 46 || eventobj.keyCode == 8 || CCN.toString().length == 0 )
 					{
@@ -179,6 +178,9 @@
 						{
 							this.config.OnCardTypeError( this );
 						}
+						
+						// Empty the ccv
+						this.ccvTextBox.val('');
 						
 						this.cards = this.config.cards;		
 						this.card = null;				
@@ -199,7 +201,7 @@
 						}
 						
 						if (CCN.toString().length > maxNumbers) {
-							this.ccnTextBox.val(this.ccnTextBox.val().substring(0, maxNumbers));
+							this.ccnTextBox.val(CCN.substring(0, maxNumbers));
 						}
 					}
 					
@@ -210,40 +212,10 @@
 					// Nothing right now
 		}
 		
-		
+		// Clear out the ccvTextBox if card not valid
 	},
 	
-	validateCCV: function(CCV) {
-		var isValidCCN = false;
-
-		
-		for (var i = 0; i < this.config.cscs.length; i++) {
-			var csc = this.config.cscs[i];
-			if (csc.id == this.card.csc) {
-				// We know what we are looking for now
-				for (var b = 0; b < csc.numbersizes.length; b++) {
-					if (CCV.toString().length == csc.numbersizes[b]) {
-						// We are valid
-						isValidCCN = true;
-						
-					}
-				}
-			}
-		}
-		
-		if(isValidCCN)
-		{
-			if($.isFunction(this.config.OnValidationCCVSuccess)){
-				this.config.OnValidationCCVSuccess(this);
-			}		
-		} else {
-			if($.isFunction(this.config.OnValidationCCVFailure)){
-				this.config.OnValidationCCVFailure(this);
-			}
-		}
-		
-		return isValidCCN;
-	},
+	
 	mapIIN: function(CCN) {
 		
 		this.cards = $.map(this.cards, 
@@ -315,10 +287,12 @@
 		if(isValid)
 		{
 			if($.isFunction(this.config.OnValidationSuccess)){
+				this.isCCNvalid = true;
 				this.config.OnValidationSuccess(this);
 			}		
 		} else {
 			if($.isFunction(this.config.OnValidationFailure)){
+				this.isCCNvalid = false;
 				this.config.OnValidationFailure(this);
 			}
 		}
