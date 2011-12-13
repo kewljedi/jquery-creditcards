@@ -7,14 +7,44 @@
 </head>
 <body>
 <form>
-<input type="text" id="cc"></input>
+
+<p>Using plugin in default mode</p>
+<div id="cc"></div>
+
+<br />
+<br />
+
+<p>Using plugin in config'd mode</p>
+<div id="cc2">
+	<div id="textboxHolder">
+		<input type="text" name="MyCustomTextBox" id="myCustomTextBox" value="" >
+		<input type="text" name="MyCustomCCVTextBox" id="myCustomCCV" value="" >
+		
+	</div>
+	<div id="imageHolder"></div>
+</div>
+
+
 </form>
 <script>
 	$(document).ready(
 		function ()
 		{
+			// Just create the credit card validation control
 			$("#cc").creditcardvalidation( );
+			
+			// Create the credit card validation using custom html
+			$("#cc2").creditcardvalidation( {
+				inputTextBoxID: "myCustomTextBox",
+				imageDivID: "imageHolder",
+				ccvTextBoxID: "myCustomCCV",
+				callback:  function () {
+					alert ("Is CCN valid? " + this.isCCNvalid + " | Is CCV valid? " + this.isCCVvalid);
+				}
+			});
 		}
+		
+		
 	)
 </script>
 
