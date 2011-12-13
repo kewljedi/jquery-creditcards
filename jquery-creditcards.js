@@ -142,17 +142,44 @@
 					// Process the 3 digit code
 					var CCV = this.ccvTextBox.val();
 					
-					if (this.card != null) {
-						this.validateCCV(CCV);
+					if (this.card == null) {
+						this.ccvTextBox.val('');
+										
+					} else {
+						// prevent typing
+						var maxNumbers = 0;
+						
+						for (var i = 0; i < this.config.cscs.length; i++) {
+							var csc = this.config.cscs[i];
+							if (csc.id == this.card.csc) {
+								// We know what we are looking for now
+								for (var b = 0; b < csc.numbersizes.length; b++) {
+									if (maxNumbers < csc.numbersizes[b]) {
+										maxNumbers = csc.numbersizes[b];
+									}
+								}
+							}
+						}
+						
+						if (CCV.toString().length >= maxNumbers && maxNumbers > 0) {
+							this.ccvTextBox.val(this.ccvTextBox.val().substring(0, maxNumbers));
+						}
 					}
+					
+					this.validateCCV(CCV);
 					break;
 					
 				case this.config.inputTextBoxID:
 					// Process the event on the input div
 					CCN = this.ccnTextBox.val();
-
+			
 					if(eventobj.keyCode == 46 || eventobj.keyCode == 8 || CCN.toString().length == 0 )
 					{
+						if($.isFunction(this.config.OnCardTypeError))
+						{
+							this.config.OnCardTypeError( this );
+						}
+						
 						this.cards = this.config.cards;		
 						this.card = null;				
 						this.mapIIN(CCN);
@@ -188,6 +215,7 @@
 	
 	validateCCV: function(CCV) {
 		var isValidCCN = false;
+
 		
 		for (var i = 0; i < this.config.cscs.length; i++) {
 			var csc = this.config.cscs[i];
@@ -197,6 +225,7 @@
 					if (CCV.toString().length == csc.numbersizes[b]) {
 						// We are valid
 						isValidCCN = true;
+						
 					}
 				}
 			}
@@ -213,7 +242,7 @@
 			}
 		}
 		
-		
+		return isValidCCN;
 	},
 	mapIIN: function(CCN) {
 		
