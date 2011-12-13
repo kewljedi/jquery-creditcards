@@ -16,6 +16,7 @@
 		var mychar = "";                                   // next char to process
 		var j = 1;                                         // takes value of 1 or 2
 	    var cardNo = cardnumber.toString();
+
 		
 		// Process each digit one by one starting at the right
 		var calc;
@@ -54,13 +55,18 @@
 	var CreditCardValidation = function( elem, options ){
 		this.elem = elem;
 		this.$elem = $(elem);
-		this.options = options;
-
+	
 		// This next line takes advantage of HTML5 data attributes
 		// to support customization of the plugin on a per-element
 		// basis. For example,
 		// <div class=item' data-plugin-options='{"message":"Goodbye World!"}'></div>
 		this.metadata = this.$elem.data( 'creditcard-options' );
+	
+		
+
+	
+		this.options = $.extend({ callback: function() {}}, arguments[0] || {}, options);
+
 	
 		this.config = $.extend({}, this.defaults, this.options, this.metadata);
 		
@@ -69,21 +75,32 @@
 		// TODO: Figure out some logic if someone names their custom div's the same names as the default ones
 		
 		// Set up inputbox
-		if (this.config.inputDiv == this.defaults.inputDiv) {
-			var newTextBoxDiv = $(document.createElement('div')).attr("id", this.config.inputDiv);
+		if (this.config.inputTextBoxID == this.defaults.inputTextBoxID) {
+			var newTextBoxDiv = $(document.createElement('div')).attr("id", 'ccnTextBoxDiv');
 			newTextBoxDiv.appendTo(elem);
-			newTextBoxDiv.after().html('<input type="text" name="CCtextbox" id="CCtextbox" value="" >');
-			this.ccnTextBox = this.$elem.find('#CCtextbox');
+			newTextBoxDiv.after().html('<input type="text" name="TextBoxDiv" id="ccnTextBox" value="" >');
+			this.ccnTextBox = this.$elem.find('#ccnTextBox');
 		} else {
-			this.ccnTextBox = this.$elem.find('#' + this.config.inputDiv);
+			this.ccnTextBox = this.$elem.find('#' + this.config.inputTextBoxID);
+		}
+		
+		// Set up the CCV box
+		if (this.config.ccvTextBoxID == this.defaults.ccvTextBoxID) {
+			var newccvTextBoxID = $(document.createElement('div')).attr("id", 'ccvTextBoxDiv');
+			newccvTextBoxID.appendTo(elem);
+			newccvTextBoxID.after().html('<input type="text" name="CCVtextbox" id="ccvTextBox" value="" >');
+			this.ccvTextBox = this.$elem.find('#ccvTextBox');
+		
+		} else {
+			this.ccvTextBox = this.$elem.find('#' + this.config.ccvTextBoxID);
 		}
 		
 		// Set up image 
-		if (this.config.imageDiv == this.defaults.imageDiv) {
-			this.newImageDiv = $(document.createElement('div')).attr("id", this.config.imageDiv);
-			this.newImageDiv.appendTo(elem);
+		if (this.config.imageDivID == this.defaults.imageDivID) {
+			this.newimageDivID = $(document.createElement('div')).attr("id", this.config.imageDivID);
+			this.newimageDivID.appendTo(elem);
 		} else {
-			this.newImageDiv = $(this.$elem).find('#' + this.config.imageDiv);
+			this.newimageDivID = $(this.$elem).find('#' + this.config.imageDivID);
 		}
 	 
 	 
@@ -97,6 +114,8 @@
 		this.$elem.bind( 'focusout.creditcardvalidation',$.proxy(this.focusout,this));
 		this.cards = this.config.cards; 
 		this.IINLength = 6;	 
+		this.isCCNvalid = false;
+		this.isCCVvalid = false;
 
 		$('head').append('<link rel="stylesheet" href="creditcardsprite.css" type="text/css" />');
 
@@ -106,39 +125,97 @@
 		this.$elem.unbind('.creditcardvalidation');		
 	},
 	focusout: function(eventobj) {
-		//this.validate();
+		
+		if($.isFunction(this.config.OnValidationAllSuccess)){
+			this.config.OnValidationAllSuccess(this);
+		}
+		
 	},
 	keyup:function(eventobj){
 		
-		CCN = this.ccnTextBox.val();
-		
-		if(eventobj.keyCode == 46 || eventobj.keyCode == 8 || CCN.toString().length == 0 )
-		{
-			this.cards = this.config.cards;		
-			this.card = null;				
-			this.mapIIN(CCN);
+		switch(eventobj.target.id) {
+				case this.config.imageDivID:
+					// This is pointless
+					break;
+				
+				case this.config.ccvTextBoxID:
+					// Process the 3 digit code
+					var CCV = this.ccvTextBox.val();
+					
+					if (this.card == null || this.isCCNvalid == false) {
+						this.ccvTextBox.val('');
+										
+					} else {
+						// prevent typing
+						var maxNumbers = 0;
+						
+						for (var i = 0; i < this.config.cscs.length; i++) {
+							var csc = this.config.cscs[i];
+							if (csc.id == this.card.csc) {
+								// We know what we are looking for now
+								for (var b = 0; b < csc.numbersizes.length; b++) {
+									if (maxNumbers < csc.numbersizes[b]) {
+										maxNumbers = csc.numbersizes[b];
+									}
+								}
+							}
+						}
+						
+						if (CCV.toString().length >= maxNumbers && maxNumbers > 0) {
+							this.ccvTextBox.val(CCV.substring(0, maxNumbers));
+						}
+					}
+					
+					break;
+					
+				case this.config.inputTextBoxID:
+					// Process the event on the input div
+					var CCN = this.ccnTextBox.val();
+			
+					if(eventobj.keyCode == 46 || eventobj.keyCode == 8 || CCN.toString().length == 0 )
+					{
+						if($.isFunction(this.config.OnCardTypeError))
+						{
+							this.config.OnCardTypeError( this );
+						}
+						
+						// Empty the ccv
+						this.ccvTextBox.val('');
+						
+						this.cards = this.config.cards;		
+						this.card = null;				
+						this.mapIIN(CCN);
+					}
+					
+					if(this.card == null) //&& this.cards.length != 1)
+					{			
+						this.mapIIN(CCN);
+					} else {
+						// prevent typing more numbers.
+						
+						var maxNumbers = 0;
+						for (x in this.card.numbersizes) {
+							if (this.card.numbersizes[x] > maxNumbers) {
+								maxNumbers = this.card.numbersizes[x];
+							}
+						}
+						
+						if (CCN.toString().length > maxNumbers) {
+							this.ccnTextBox.val(CCN.substring(0, maxNumbers));
+						}
+					}
+					
+					this.validate();
+					break;
+					
+				default:
+					// Nothing right now
 		}
 		
-		if(this.card == null) //&& this.cards.length != 1)
-		{			
-			this.mapIIN(CCN);
-		} else {
-			// prevent typing more numbers.
-			
-			var maxNumbers = 0;
-			for (x in this.card.numbersizes) {
-				if (this.card.numbersizes[x] > maxNumbers) {
-					maxNumbers = this.card.numbersizes[x];
-				}
-			}
-			
-			if (CCN.toString().length > maxNumbers) {
-				this.ccnTextBox.val(this.ccnTextBox.val().substring(0, maxNumbers));
-			}
-		}
-		
-		this.validate();
+		// Clear out the ccvTextBox if card not valid
 	},
+	
+	
 	mapIIN: function(CCN) {
 		
 		this.cards = $.map(this.cards, 
@@ -210,10 +287,12 @@
 		if(isValid)
 		{
 			if($.isFunction(this.config.OnValidationSuccess)){
+				this.isCCNvalid = true;
 				this.config.OnValidationSuccess(this);
 			}		
 		} else {
 			if($.isFunction(this.config.OnValidationFailure)){
+				this.isCCNvalid = false;
 				this.config.OnValidationFailure(this);
 			}
 		}
@@ -267,24 +346,39 @@
 	},
 	defaults: {
 		// "At this level of abstraction, nothing makes sense" - Steve 
-		imageDiv: "ImageDiv",
-		inputDiv: "TextBoxDiv",
+		imageDivID: "imageDivID",
+		inputTextBoxID: "ccnTextBox",
+		ccvTextBoxID: "ccvTextBox",
+		
 		
 		OnCardTypeFound: function(ValidateCreditCard) {
-			ValidateCreditCard.newImageDiv.attr("class", "CC " + ValidateCreditCard.card.imageclass);
+			this.isCCNvalid = true;
+			ValidateCreditCard.newimageDivID.attr("class", "CC " + ValidateCreditCard.card.imageclass);
 		},
 		OnCardTypeError: function(ValidateCreditCard) { 
-		
-			ValidateCreditCard.newImageDiv.attr("class", "");
+			this.isCCNvalid = false;
+			ValidateCreditCard.newimageDivID.attr("class", "");
 			//this.card = null;
 		},
 		OnValidationSuccess: function(ValidateCreditCard){ 
-			
-			ValidateCreditCard.newImageDiv.attr("class", "CC " + ValidateCreditCard.card.imageclass + "-SELECTED");
+			this.isCCNvalid = true;
+			ValidateCreditCard.newimageDivID.attr("class", "CC " + ValidateCreditCard.card.imageclass + "-SELECTED");
 		},
 		OnValidationFailure: function(ValidateCreditCard){ 
+			this.isCCNvalid = false;
+			ValidateCreditCard.newimageDivID.attr("class", "CC " + ValidateCreditCard.card.imageclass + "-NOTSELECTED");	
+		},
+		OnValidationCCVSuccess: function(ValidateCCV) {
+			this.isCCVvalid = true;
+		},
+		OnValidationCCVFailure: function(ValidateCCV) {
+			this.isCCVvalid = false;
+		},		
+		OnValidationAllSuccess: function (ValidateAll) {
+			// This needs to return to main page
+			// now call a callback function
+			this.callback.call(this);
 			
-			ValidateCreditCard.newImageDiv.attr("class", "CC " + ValidateCreditCard.card.imageclass + "-NOTSELECTED");	
 		},
 		
 		cards:[
@@ -330,8 +424,8 @@
 				image:''
 			},
 			{
-				name: 'Card Verification Value',
-				id:'CVV2',
+				name: "Card Verification Value",
+				id:'CVC2',
 				numbersizes:[3],
 				description:'The three-digit card security code is not embossed like the card number, and is always the final group of numbers printed on the back signature panel of the card. New North American MasterCard and Visa cards feature the code in a separate panel to the right of the signature strip.',
 				image:''
