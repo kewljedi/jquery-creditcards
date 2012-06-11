@@ -61,12 +61,8 @@
 		// basis. For example,
 		// <div class=item' data-plugin-options='{"message":"Goodbye World!"}'></div>
 		this.metadata = this.$elem.data( 'creditcard-options' );
-	
-		
 
-	
 		this.options = $.extend({ callback: function() {}}, arguments[0] || {}, options);
-
 	
 		this.config = $.extend({}, this.defaults, this.options, this.metadata);
 		
@@ -89,18 +85,17 @@
 			var newccvTextBoxID = $(document.createElement('div')).attr("id", 'ccvTextBoxDiv');
 			newccvTextBoxID.appendTo(elem);
 			newccvTextBoxID.after().html('<input type="text" name="CCVtextbox" id="ccvTextBox" value="" >');
-			this.ccvTextBox = this.$elem.find('#ccvTextBox');
-		
+			this.ccvTextBox = this.$elem.find('#ccvTextBox');		
 		} else {
 			this.ccvTextBox = this.$elem.find('#' + this.config.ccvTextBoxID);
 		}
 		
 		// Set up image 
 		if (this.config.imageDivID == this.defaults.imageDivID) {
-			this.newimageDivID = $(document.createElement('div')).attr("id", this.config.imageDivID);
-			this.newimageDivID.appendTo(elem);
+			this.$imageDivID = $(document.createElement('div')).attr("id", this.config.imageDivID);
+			this.$imageDivID.appendTo(elem);
 		} else {
-			this.newimageDivID = $(this.$elem).find('#' + this.config.imageDivID);
+			this.$imageDivID = $(this.$elem).find('#' + this.config.imageDivID);
 		}
 	 
 	 
@@ -108,7 +103,6 @@
 
   // the plugin prototype
   CreditCardValidation.prototype = {
-
     init: function() {
 		this.$elem.bind( 'keyup.creditcardvalidation', $.proxy(this.keyup,this) );
 		this.$elem.bind( 'focusout.creditcardvalidation',$.proxy(this.focusout,this));
@@ -124,12 +118,8 @@
 	destroy: function() {
 		this.$elem.unbind('.creditcardvalidation');		
 	},
-	focusout: function(eventobj) {
-		
-		if($.isFunction(this.config.OnValidationAllSuccess)){
-			this.config.OnValidationAllSuccess(this);
-		}
-		
+	focusout: function(eventobj) {		
+		this.validate();			
 	},
 	keyup:function(eventobj){
 		
@@ -173,21 +163,11 @@
 					var CCN = this.ccnTextBox.val();
 			
 					if(eventobj.keyCode == 46 || eventobj.keyCode == 8 || CCN.toString().length == 0 )
-					{
-						if($.isFunction(this.config.OnCardTypeError))
-						{
-							this.config.OnCardTypeError( this );
-						}
-						
-						// Empty the ccv
-						this.ccvTextBox.val('');
-						
-						this.cards = this.config.cards;		
-						this.card = null;				
-						this.mapIIN(CCN);
+					{					
+						this.clearSubs();
 					}
 					
-					if(this.card == null) //&& this.cards.length != 1)
+					if(this.card == null) 
 					{			
 						this.mapIIN(CCN);
 					} else {
@@ -205,7 +185,10 @@
 						}
 					}
 					
-					this.validate();
+					if(this.card != null)
+					{
+						this.validate();
+					}
 					break;
 					
 				default:
@@ -214,8 +197,6 @@
 		
 		// Clear out the ccvTextBox if card not valid
 	},
-	
-	
 	mapIIN: function(CCN) {
 		
 		this.cards = $.map(this.cards, 
@@ -236,22 +217,49 @@
 			
 		if(this.cards.length == 1 && this.card != null)
 		{
+		    var card = this.card;
+		
 			//we now know the type of card.
-			if($.isFunction(this.config.OnCardTypeFound))
-			{
-				this.config.OnCardTypeFound( this );
+			if(card.accept)
+			{			
+				this.setImage("FOUND");
+				
+				if($.isFunction(this.config.OnCardTypeFound))
+				{
+					this.config.OnCardTypeFound( this, card );
+				}
+			} else{		
+			
+				this.clearSubs();
+				
+				if($.isFunction(this.config.OnDisabledCard))
+				{
+					this.config.OnDisabledCard( this, card );					
+				}
 			}
-		}
+		} 
 		
 		if(this.cards.length <= 0)
 		{
 			//this.card = null;
+			this.clearSubs();
 			if($.isFunction(this.config.OnCardTypeError))
 			{
 				this.config.OnCardTypeError( this );
 			}
 		}
 		
+	},
+	clearSubs: function() {
+		this.card = null;
+		this.cards = this.config.cards
+		
+		this.setImage("none");
+		
+		this.isCCNvalid = false;
+		this.isCCVvalid = false;
+		
+		this.ccvTextBox.val('');		
 	},
     validate: function() {
 		//the first step is to get the value from the control that we are attached to.
@@ -269,9 +277,9 @@
 			jQuery.each(this.defaults.cards,$.proxy( function( index, value)
 			{
 				if(this.matchIIN(value, this.IIN))
-				{
-					if(this.matchNumberSize(value,this.CCN)) {
-						if(value.checksum(this.CCN)) {
+				{					
+					if( this.matchNumberSize( value, this.CCN ) ) {
+						if( value.checksum( this.CCN ) ) {
 							isValid = true;
 							this.card = value;
 							return false;
@@ -284,19 +292,35 @@
 			},this));
 		} 
 		
-		if(isValid)
-		{
-			if($.isFunction(this.config.OnValidationSuccess)){
-				this.isCCNvalid = true;
+		if(isValid) {
+			this.isCCNvalid = true;
+			
+			this.setImage("SELECTED");
+			
+			if($.isFunction(this.config.OnValidationSuccess)){				
 				this.config.OnValidationSuccess(this);
 			}		
+			
 		} else {
-			if($.isFunction(this.config.OnValidationFailure)){
-				this.isCCNvalid = false;
+			this.isCCNvalid = false;
+			
+			this.setImage("NOTSELECTED");
+			
+			if($.isFunction(this.config.OnValidationFailure)){				
 				this.config.OnValidationFailure(this);
 			}
 		}
     },
+	setImage: function(type){
+		if(this.$imageDivID.length > 0)
+		{
+			if(type == "none") {
+				this.$imageDivID.attr("class", "CC CC-NONE");
+			}else{
+				this.$imageDivID.attr("class", "CC " + this.card.imageclass + "-" + type);
+			}
+		}
+	},
 	matchNumberSize: function(card, cardnumber){
 		var returnVal = false;
 		jQuery.each(card.numbersizes, function(index, value)
@@ -349,38 +373,27 @@
 		imageDivID: "imageDivID",
 		inputTextBoxID: "ccnTextBox",
 		ccvTextBoxID: "ccvTextBox",
-		
-		
-		OnCardTypeFound: function(ValidateCreditCard) {
-			this.isCCNvalid = true;
-			ValidateCreditCard.newimageDivID.attr("class", "CC " + ValidateCreditCard.card.imageclass);
+		OnDisabledCard: function(ValidateCreditCard, card) {	
+			ValidateCreditCard.ccnTextBox.val('');			
+			alert("We do not accept " + card.name + ". Please try a different card.");			
 		},
-		OnCardTypeError: function(ValidateCreditCard) { 
-			this.isCCNvalid = false;
-			ValidateCreditCard.newimageDivID.attr("class", "");
-			//this.card = null;
+		OnCardTypeFound: function( ValidateCreditCard, card ) {			
 		},
-		OnValidationSuccess: function(ValidateCreditCard){ 
-			this.isCCNvalid = true;
-			ValidateCreditCard.newimageDivID.attr("class", "CC " + ValidateCreditCard.card.imageclass + "-SELECTED");
+		OnCardTypeError: function(ValidateCreditCard) { 			
 		},
-		OnValidationFailure: function(ValidateCreditCard){ 
-			this.isCCNvalid = false;
-			ValidateCreditCard.newimageDivID.attr("class", "CC " + ValidateCreditCard.card.imageclass + "-NOTSELECTED");	
+		OnValidationSuccess: function(ValidateCreditCard){ 						
 		},
-		OnValidationCCVSuccess: function(ValidateCCV) {
-			this.isCCVvalid = true;
+		OnValidationFailure: function(ValidateCreditCard){ 						
 		},
-		OnValidationCCVFailure: function(ValidateCCV) {
-			this.isCCVvalid = false;
+		/*OnValidationCCVSuccess: function(ValidateCCV) {			
+		},
+		OnValidationCCVFailure: function(ValidateCCV) {			
 		},		
 		OnValidationAllSuccess: function (ValidateAll) {
 			// This needs to return to main page
 			// now call a callback function
-			this.callback.call(this);
-			
-		},
-		
+			this.callback.call(this);			
+		},*/		
 		cards:[
 			{
 				name:'Master Card',
@@ -388,7 +401,8 @@
 				checksum: mod10,
 				iin: [51,52,53,54,55],
 				imageclass:'MASTER',
-				csc:'CVC2'
+				csc:'CVC2',
+				accept:true
 			},
 			{
 				name:'Visa',
@@ -396,7 +410,8 @@
 				checksum: mod10,
 				iin: [4],
 				imageclass:'VISA',
-				csc: 'CVV2'
+				csc: 'CVV2',
+				accept:true
 			},
 			{
 				name:'American Express',
@@ -404,7 +419,8 @@
 				checksum: mod10,
 				imageclass:'AE',
 				iin:[34,37],
-				csc:'CID'
+				csc:'CID',
+				accept:false
 			},
 			{
 				name:'Discover',
@@ -412,7 +428,8 @@
 				checksum: mod10,
 				imageclass:'DISCOVER',
 				iin:[6011,622,64,65],
-				csc:'CID'
+				csc:'CID',
+				accept:true
 			}
 		],
 		cscs:[
