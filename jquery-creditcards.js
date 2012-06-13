@@ -143,11 +143,8 @@
 							var csc = this.config.cscs[i];
 							if (csc.id == this.card.csc) {
 								// We know what we are looking for now
-								for (var b = 0; b < csc.numbersizes.length; b++) {
-									if (maxNumbers < csc.numbersizes[b]) {
-										maxNumbers = csc.numbersizes[b];
-									}
-								}
+								maxNumbers = this.getMaxNumberSize(csc.numbersizes);
+								break;
 							}
 						}
 						
@@ -172,13 +169,8 @@
 						this.mapIIN(CCN);
 					} else {
 						// prevent typing more numbers.
-						
 						var maxNumbers = 0;
-						for (x in this.card.numbersizes) {
-							if (this.card.numbersizes[x] > maxNumbers) {
-								maxNumbers = this.card.numbersizes[x];
-							}
-						}
+						maxNumbers = this.getMaxNumberSize(this.card.numbersizes);
 						
 						if (CCN.toString().length > maxNumbers) {
 							this.ccnTextBox.val(CCN.substring(0, maxNumbers));
@@ -221,8 +213,9 @@
 		
 			//we now know the type of card.
 			if(card.accept)
-			{			
+			{						
 				this.setImage("FOUND");
+				this.setCardLength(this.card);
 				
 				if($.isFunction(this.config.OnCardTypeFound))
 				{
@@ -250,6 +243,43 @@
 		}
 		
 	},
+	setCardLength: function(card) {
+		//lets get the credit card number field's max length set.
+		
+		var maxlength = 0;
+		maxlength = this.getMaxNumberSize(card.numbersizes);
+		if(maxlength != 0)
+		{
+			this.ccnTextBox.attr("maxlength", maxlength);		
+		}
+		
+		//and now lets take care of the CVV field's max length		
+		jQuery.each(this.defaults.cscs,$.proxy( function(index, value)
+		{
+			if(value.id == card.csc)
+			{
+				maxlength = this.getMaxNumberSize(value.numbersizes);
+				return false;
+			}
+		},this));
+		
+		if(maxlength != 0 )
+		{
+			this.ccvTextBox.attr("maxlength", maxlength);		
+		}
+	},
+	getMaxNumberSize: function( sizes )
+	{
+		var maxlength = 0;
+		jQuery.each(sizes, function(index, value)
+		{
+			if(value > maxlength)
+			{
+				maxlength = value;
+			}
+		});		
+		return maxlength;
+	},
 	clearSubs: function() {
 		this.card = null;
 		this.cards = this.config.cards
@@ -259,7 +289,8 @@
 		this.isCCNvalid = false;
 		this.isCCVvalid = false;
 		
-		this.ccvTextBox.val('');		
+		this.ccvTextBox.val('');
+		this.ccnTextBox.removeAttr("maxlength");
 	},
     validate: function() {
 		//the first step is to get the value from the control that we are attached to.
@@ -303,7 +334,6 @@
 			
 		} else {
 			this.isCCNvalid = false;
-			
 			this.setImage("NOTSELECTED");
 			
 			if($.isFunction(this.config.OnValidationFailure)){				
@@ -314,7 +344,7 @@
 	setImage: function(type){
 		if(this.$imageDivID.length > 0)
 		{
-			if(type == "none") {
+			if(type == "none" || this.card == null) {
 				this.$imageDivID.attr("class", "CC CC-NONE");
 			}else{
 				this.$imageDivID.attr("class", "CC " + this.card.imageclass + "-" + type);
