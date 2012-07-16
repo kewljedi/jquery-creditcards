@@ -111,7 +111,9 @@
 		this.isCCNvalid = false;
 		this.isCCVvalid = false;
 
-		$('head').append('<link rel="stylesheet" href="creditcardsprite.css" type="text/css" />');
+		var path = this.scriptPath("jquery-creditcards.js");
+		
+		$('head').append('<link rel="stylesheet" href="' + path + 'creditcardsprite.css" type="text/css" />');
 
 		return this;
     },
@@ -345,9 +347,9 @@
 		if(this.$imageDivID.length > 0)
 		{
 			if(type == "none" || this.card == null) {
-				this.$imageDivID.attr("class", "CC CC-NONE");
+				this.$imageDivID.attr('class', 'CC CC-NONE');
 			}else{
-				this.$imageDivID.attr("class", "CC " + this.card.imageclass + "-" + type);
+				this.$imageDivID.attr('class', "CC " + this.card.imageclass + "-" + type);
 			}
 		}
 	},
@@ -397,6 +399,24 @@
 		},this));
 		
 		return returnVal;
+	},
+	scriptPath: function(name) {
+		var scripts = document.getElementsByTagName('script');
+		var script = null;
+        jQuery.each(scripts, function(index,value)
+		{
+			var fileIndex = value.src.indexOf(name);
+			if(fileIndex != -1)
+			{
+				script = value.src.substr(0,fileIndex);
+				return false;
+			}
+		});
+
+		if (script.length !== undefined) {			
+			return script;
+		}
+		return script.getAttribute('src', -1);
 	},
 	defaults: {
 		// "At this level of abstraction, nothing makes sense" - Steve 
